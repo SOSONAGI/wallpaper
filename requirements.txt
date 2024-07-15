@@ -2,3 +2,4 @@ streamlit
 torch
 timm
 pandas
+transformers
