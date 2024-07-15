@@ -1,4 +1,4 @@
-PIL
+streamlit
 torch
 timm
 pandas
