@@ -8,11 +8,10 @@ import os
 import io
 from torchvision import transforms as T
 import torch.nn as nn
-import timm
 import base64
 from typing import List, Dict
 import pandas as pd
-from transformers import AutoModel
+from transformers import AutoModel, AutoConfig
 
 class Config:
     num_classes = 19
@@ -62,43 +61,50 @@ st.title("Wallpaper Classifying Apps_v2")
 # 스트림릿 시크릿에서 허깅페이스 허브 토큰 가져오기
 hf_token = st.secrets["huggingface_token"]
 
-# 허깅페이스 레포지토리에서 가중치 불러오기
-huggingface_model = AutoModel.from_pretrained('sosoai/dino_checkpoint', use_auth_token=hf_token)
-huggingface_state_dict = huggingface_model.state_dict()
+if hf_token:
+    try:
+        # 허깅페이스 레포지토리에서 가중치 불러오기
+        huggingface_model = AutoModel.from_pretrained('sosoai/dino_checkpoint', use_auth_token=hf_token)
+        huggingface_state_dict = huggingface_model.state_dict()
 
-model = DINO().to(device)
-model.load_state_dict(huggingface_state_dict, strict=False)  # 기존 모델의 가중치에 허깅페이스 가중치를 덮어씌움
-model.eval()
+        model = DINO().to(device)
+        model.load_state_dict(huggingface_state_dict, strict=False)  # 기존 모델의 가중치에 허깅페이스 가중치를 덮어씌움
+        model.eval()
 
-def predict(image):
-    image_transformed = val_transform(image).unsqueeze(0).to(device)
+        def predict(image):
+            image_transformed = val_transform(image).unsqueeze(0).to(device)
 
-    with torch.no_grad():
-        output = model(image_transformed)
-        predicted_class_idx = torch.argmax(output, dim=1).item()
+            with torch.no_grad():
+                output = model(image_transformed)
+                predicted_class_idx = torch.argmax(output, dim=1).item()
 
-    return predicted_class_idx
+            return predicted_class_idx
 
-class_counter = {class_name: 0 for class_name in config.class_names}
+        class_counter = {class_name: 0 for class_name in config.class_names}
 
-def classify_and_save_file(uploaded_file, target_dir):
-    image = Image.open(io.BytesIO(uploaded_file.getvalue())).convert("RGB")
-    class_index = predict(image)
-    class_name = config.class_names[class_index]
-    target_folder = os.path.join(target_dir, class_name)
-    os.makedirs(target_folder, exist_ok=True)
+        def classify_and_save_file(uploaded_file, target_dir):
+            image = Image.open(io.BytesIO(uploaded_file.getvalue())).convert("RGB")
+            class_index = predict(image)
+            class_name = config.class_names[class_index]
+            target_folder = os.path.join(target_dir, class_name)
+            os.makedirs(target_folder, exist_ok=True)
 
-    class_counter[class_name] += 1
-    new_filename = f"{class_name}{class_counter[class_name]}.png"
+            class_counter[class_name] += 1
+            new_filename = f"{class_name}{class_counter[class_name]}.png"
 
-    resized_image = image.resize((512, 512), Image.BICUBIC)
-    image_path = os.path.join(target_folder, new_filename)
-    resized_image.save(image_path, 'PNG')
+            resized_image = image.resize((512, 512), Image.BICUBIC)
+            image_path = os.path.join(target_folder, new_filename)
+            resized_image.save(image_path, 'PNG')
 
-uploaded_files = st.file_uploader("이미지를 선택하세요...", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
+        uploaded_files = st.file_uploader("이미지를 선택하세요...", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
 
-target_directory = './result'
+        target_directory = './result'
 
-if uploaded_files:
-    for uploaded_file in uploaded_files:
-        classify_and_save_file(uploaded_file, target_directory)
+        if uploaded_files:
+            for uploaded_file in uploaded_files:
+                classify_and_save_file(uploaded_file, target_directory)
+
+    except Exception as e:
+        st.error(f"허깅페이스 모델을 불러오는 중 오류가 발생했습니다: {str(e)}")
+else:
+    st.warning("허깅페이스 허브 토큰을 설정 파일에 추가하세요.")
