@@ -11,7 +11,6 @@ import torch.nn as nn
 import base64
 from typing import List, Dict
 import pandas as pd
-from transformers import AutoModel, AutoConfig
 
 class Config:
     num_classes = 19
@@ -63,12 +62,20 @@ hf_token = st.secrets["huggingface_token"]
 
 if hf_token:
     try:
-        # 허깅페이스 레포지토리에서 가중치 불러오기
-        huggingface_model = AutoModel.from_pretrained('sosoai/dino_checkpoint', use_auth_token=hf_token)
-        huggingface_state_dict = huggingface_model.state_dict()
+        # 허깅페이스 레포지토리에서 가중치 파일을 다운로드하여 로드
+        model_path = "best3.pt"
+        model_url = f"https://huggingface.co/sosoai/dino_checkpoint/resolve/main/{model_path}"
+
+        # 모델 가중치 다운로드
+        import requests
+
+        if not os.path.exists(model_path):
+            response = requests.get(model_url, headers={"Authorization": f"Bearer {hf_token}"})
+            with open(model_path, 'wb') as f:
+                f.write(response.content)
 
         model = DINO().to(device)
-        model.load_state_dict(huggingface_state_dict, strict=False)  # 기존 모델의 가중치에 허깅페이스 가중치를 덮어씌움
+        model.load_state_dict(torch.load(model_path, map_location=device), strict=False)  # 기존 모델의 가중치에 허깅페이스 가중치를 덮어씌움
         model.eval()
 
         def predict(image):
