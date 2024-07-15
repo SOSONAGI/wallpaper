@@ -35,7 +35,7 @@ class DINO(nn.Module):
             nn.Linear(512, 256),
             nn.BatchNorm1d(256),
             nn.ReLU(),
-            nn.Linear(256, 19),
+            nn.Linear(256, config.num_classes),
         )
 
     def forward(self, img):
@@ -49,7 +49,7 @@ class DINO(nn.Module):
 
 # Preprocess the image
 val_transform = T.Compose([
-    T.Resize((336, 336), interpolation=T.InterpolationMode.BICUBIC),
+    T.Resize((224, 224), interpolation=T.InterpolationMode.BICUBIC),  # 이미지 크기 축소
     T.ToTensor(),
     T.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
 ])
@@ -85,11 +85,11 @@ if hf_token:
                 output = model(image_transformed)
                 predicted_class_idx = torch.argmax(output, dim=1).item()
 
-            return predicted_class_idx
+            return config.class_names[predicted_class_idx]
 
         class_counter = {class_name: 0 for class_name in config.class_names}
 
-        def classify_and_save_file(uploaded_file, target_dir):
+        def classify_and_save_file(uploaded_file, target_dir='./result'):
             image = Image.open(io.BytesIO(uploaded_file.getvalue())).convert("RGB")
             class_index = predict(image)
             class_name = config.class_names[class_index]
