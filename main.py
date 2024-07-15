@@ -12,6 +12,7 @@ import timm
 import base64
 from typing import List, Dict
 import pandas as pd
+from transformers import AutoModel
 
 class Config:
     num_classes = 19
@@ -55,10 +56,14 @@ val_transform = T.Compose([
     T.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
 ])
 
-# 허깅페이스 레포지토리에서 가중치 불러오기
-from transformers import AutoConfig, AutoModel
+# Streamlit 앱 구성
+st.title("Wallpaper Classifying Apps_v2")
 
-huggingface_model = AutoModel.from_pretrained('sosoai/dino_checkpoint')
+# 스트림릿 시크릿에서 허깅페이스 허브 토큰 가져오기
+hf_token = st.secrets["huggingface_token"]
+
+# 허깅페이스 레포지토리에서 가중치 불러오기
+huggingface_model = AutoModel.from_pretrained('sosoai/dino_checkpoint', use_auth_token=hf_token)
 huggingface_state_dict = huggingface_model.state_dict()
 
 model = DINO().to(device)
@@ -89,8 +94,6 @@ def classify_and_save_file(uploaded_file, target_dir):
     resized_image = image.resize((512, 512), Image.BICUBIC)
     image_path = os.path.join(target_folder, new_filename)
     resized_image.save(image_path, 'PNG')
-
-st.title("Wallpaper Classifying Apps_v2")
 
 uploaded_files = st.file_uploader("이미지를 선택하세요...", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
 
